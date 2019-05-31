@@ -12,6 +12,8 @@ class IgniteEngine:
     def eval_batch(self, engine, batch):
         raise NotImplementedError
 
-    def getTrainer(self):
+    def makeTrainer(self):
+        """ Creates a trainer and evaluator and attaches event handlers
+        """
         #return Engine(train_batch) 
         raise NotImplementedError
