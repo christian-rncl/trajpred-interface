@@ -149,7 +149,7 @@ class TraphicEngine(IgniteEngine):
         if self.args['use_maneuvers']:
             metrics = {}
         else:
-            metrics = {"Avg train loss": self.avg_trn_loss / 100.0, "Avg val loss": self.avg_val_loss/ }
+            metrics = {"Avg train loss": self.avg_trn_loss / 100.0, "Avg val loss": self.avg_val_loss/self.val_batch_count }
 
         pbar = ProgressBar(persist=True, postfix=metrics)
         pbar.attach(self.trainer)
@@ -162,4 +162,4 @@ class TraphicEngine(IgniteEngine):
 
 
     def startTraining(self):
-
+        trainer.run(trDataloader, max_epochs=self.args["pretrainEpochs"] + self.args["trainEpochs"])

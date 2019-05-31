@@ -82,4 +82,3 @@ trainer = traphic.getTrainer()
 if verbose:
     print("*" * 3, "Starting training...")
 
-trainer.run(trDataloader, max_epochs=1)
