@@ -1,6 +1,7 @@
 from __future__ import print_function
 import torch
-from traphic import highwayNet
+from traphic import traphicNet
+from social import highwayNet
 from utils import ngsimDataset,maskedNLL,maskedMSE,maskedNLLTest
 from torch.utils.data import DataLoader
 import time
@@ -11,7 +12,7 @@ warnings.filterwarnings("ignore")
 ## Network Arguments
 args = {}
 args['dropout_prob'] = 0.5
-args['use_cuda'] = True
+args['use_cuda'] = False
 args['encoder_size'] = 64
 args['decoder_size'] = 128
 args['in_length'] = 16
@@ -36,7 +37,10 @@ lr=1e-3
 
 
 # Initialize network
-net = highwayNet(args)
+if args['ours']:
+    net = traphicNet(args)
+else:
+    net = highwayNet(args)
 # net.load_state_dict(torch.load('trained_models/m_false/cslstm_b_pretrain2_NGSIM.tar'), strict=False)
 
 # for i,child in enumerate(net.children()):
@@ -113,6 +117,7 @@ for epoch_num in range(pretrainEpochs+trainEpochs):
                 l = maskedNLL(fut_pred, fut, op_mask) + crossEnt(lat_pred, lat_enc) + crossEnt(lon_pred, lon_enc)
                 avg_lat_acc += (torch.sum(torch.max(lat_pred.data, 1)[1] == torch.max(lat_enc.data, 1)[1])).item() / lat_enc.size()[0]
                 avg_lon_acc += (torch.sum(torch.max(lon_pred.data, 1)[1] == torch.max(lon_enc.data, 1)[1])).item() / lon_enc.size()[0]
+
         else:
             fut_pred  = net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
             if args['nll_only']:
@@ -158,7 +163,10 @@ for epoch_num in range(pretrainEpochs+trainEpochs):
 
     for i, data  in enumerate(valDataloader):
         st_time = time.time()
-        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = data
+        if args['ours']:
+            hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = data
+        else :
+            hist, nbrs, mask, lat_enc, lon_enc, fut, op_mask = data
 
 
         if args['use_cuda']:
@@ -204,9 +212,6 @@ for epoch_num in range(pretrainEpochs+trainEpochs):
     print('Validation loss :',format(avg_val_loss/val_batch_count,'0.4f'),"| Val Acc:",format(avg_val_lat_acc/val_batch_count*100,'0.4f'),format(avg_val_lon_acc/val_batch_count*100,'0.4f'))
     val_loss.append(avg_val_loss/val_batch_count)
     prev_val_loss = avg_val_loss/val_batch_count
-
-
-
 
     #__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
 
