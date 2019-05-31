@@ -26,7 +26,7 @@ class TraphicEngine(IgniteEngine):
 
         ## validation metrics
         self.avg_val_loss = 0
-        self.val_batch_count = 0
+        self.val_batch_count = 1
 
         # only if using maneuvers
         self.avg_lat_acc = 0
@@ -34,6 +34,8 @@ class TraphicEngine(IgniteEngine):
 
         self.trainer = None
         self.evaluator = None
+
+        self.makeTrainer()
 
     def train_batch(self, engine, batch):
 
@@ -86,16 +88,15 @@ class TraphicEngine(IgniteEngine):
 
         return l.item()
 
-    def eval_batch(self, batch):
+    def eval_batch(self, engine, batch):
         net.train_flag = False
         model.eval()
 
-        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = data
+        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
 
         if self.args['use_cuda']:
             lstToCuda([hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask])
 
-        self.val_batch_count += 1
 
         # Forward pass
         if args['use_maneuvers']:
@@ -121,8 +122,8 @@ class TraphicEngine(IgniteEngine):
                     l = maskedNLL(fut_pred, fut, op_mask)
 
         self.avg_val_loss += l.item()
-        self.val_batch_count += 1
 
+        self.val_batch_count += 1
         return fut_pred, fut
 
     def validate(self, engine):
@@ -135,7 +136,7 @@ class TraphicEngine(IgniteEngine):
 
         ## validation metrics
         self.avg_val_loss = 0
-        self.val_batch_count = 0
+        self.val_batch_count = 1
 
         # only if using maneuvers
         self.avg_lat_acc = 0
@@ -156,10 +157,10 @@ class TraphicEngine(IgniteEngine):
 
         ## attach hooks
         # evaluate after every batch
-        self.trainer.add_event_handler(Events.EPOCH_COMPLETED, validate)
+        self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
         # zero out metrics for next epoch
         self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.zeroMetrics)
 
 
-    def startTraining(self):
-        trainer.run(trDataloader, max_epochs=self.args["pretrainEpochs"] + self.args["trainEpochs"])
+    def start(self):
+        self.trainer.run(self.train_loader, max_epochs=self.args["pretrainEpochs"] + self.args["trainEpochs"])

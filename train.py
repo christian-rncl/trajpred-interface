@@ -76,8 +76,8 @@ train_loss = []
 val_loss = []
 prev_val_loss = math.inf
 
-traphic = TraphicEngine(net, optim, args)
-trainer = traphic.getTrainer()
+traphic = TraphicEngine(net, optim, trDataloader, valDataloader, args)
+traphic.start()
 
 if verbose:
     print("*" * 3, "Starting training...")
