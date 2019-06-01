@@ -90,8 +90,8 @@ class TraphicEngine(IgniteEngine):
         return l.item()
 
     def eval_batch(self, engine, batch):
-        net.train_flag = False
-        model.eval()
+        self.net.train_flag = False
+        self.net.eval()
 
         hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
 
@@ -100,11 +100,11 @@ class TraphicEngine(IgniteEngine):
 
 
         # Forward pass
-        if args['use_maneuvers']:
+        if self.args['use_maneuvers']:
             if epoch_num < pretrainEpochs:
                 # During pre-training with MSE loss, validate with MSE for true maneuver class trajectory
-                net.train_flag = True
-                fut_pred, _ , _ = net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
+                self.net.train_flag = True
+                fut_pred, _ , _ = self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
                 l = maskedMSE(fut_pred, fut, op_mask)
             else:
                 # During training with NLL loss, validate with NLL over multi-modal distribution
@@ -113,8 +113,8 @@ class TraphicEngine(IgniteEngine):
                 avg_val_lat_acc += (torch.sum(torch.max(lat_pred.data, 1)[1] == torch.max(lat_enc.data, 1)[1])).item() / lat_enc.size()[0]
                 avg_val_lon_acc += (torch.sum(torch.max(lon_pred.data, 1)[1] == torch.max(lon_enc.data, 1)[1])).item() / lon_enc.size()[0]
         else:
-            fut_pred = net(hist,upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
-            if args['nll_only']:
+            fut_pred = self.net(hist,upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
+            if self.args['nll_only']:
                 l = maskedNLL(fut_pred, fut, op_mask)
             else:
                 if epoch_num < pretrainEpochs:
