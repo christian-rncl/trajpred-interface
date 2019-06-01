@@ -8,6 +8,7 @@ import math
 
 
 from traphicEngine import TraphicEngine
+from socialEngine import SocialEngine
 
 # ignite
 
@@ -31,7 +32,7 @@ args['num_lat_classes'] = 3
 args['num_lon_classes'] = 2
 args['train_flag'] = True
 args['use_maneuvers'] = False
-args['ours'] = True
+args['ours'] = False
 args['model_path'] = 'trained_models/m_false/cslstm_b_pretrain2_NGSIM.tar'
 args['nll_only'] = True
 args["pretrainEpochs"] = 6
@@ -39,8 +40,8 @@ args["trainEpochs"] = 10
 args["bs"] = 128
 batch_size = 128
 lr=1e-3
+verbose= True
 
-verbose = True
 
 # Initialize network
 if args['ours']:
@@ -76,9 +77,18 @@ train_loss = []
 val_loss = []
 prev_val_loss = math.inf
 
-traphic = TraphicEngine(net, optim, trDataloader, valDataloader, args)
-traphic.start()
-
 if verbose:
-    print("*" * 3, "Starting training...")
+    print("starting training...")
+
+if args['ours']:
+    if verbose:
+        print("Training TRAPHIC")
+    traphic = TraphicEngine(net, optim, trDataloader, valDataloader, args)
+    traphic.start()
+else:
+    if verbose:
+        print("Training conv social pooling")
+    social = SocialEngine(net, optim, trDataloader, valDataloader, args)
+    social.start()
+
 
