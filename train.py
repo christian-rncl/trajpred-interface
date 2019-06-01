@@ -55,9 +55,6 @@ if args['use_cuda']:
     net = net.cuda()
 
 ## Initialize optimizer
-# pretrainEpochs = 80
-# trainEpochs = 200
-# batch_size = 128
 optim = torch.optim.Adam(net.parameters(),lr=lr)
 crossEnt = torch.nn.BCELoss()
 
@@ -67,8 +64,8 @@ if verbose:
     print("*" * 3, "Creating dataset and dataloaders...")
 
 ## Initialize data loaders
-trSet = ngsimDataset('data/TrainSet.mat')
-valSet = ngsimDataset('data/ValSet.mat')
+trSet = ngsimDataset('data/TrainSetTRAF12.mat')
+valSet = ngsimDataset('data/ValSetTRAF12.mat')
 trDataloader = DataLoader(trSet,batch_size=batch_size,shuffle=True,num_workers=8,collate_fn=trSet.collate_fn)
 valDataloader = DataLoader(valSet,batch_size=batch_size,shuffle=True,num_workers=8,collate_fn=valSet.collate_fn)
 
@@ -90,5 +87,3 @@ else:
         print("Training conv social pooling")
     social = SocialEngine(net, optim, trDataloader, valDataloader, args)
     social.start()
-
-
