@@ -50,7 +50,7 @@ class SocialEngine(IgniteEngine):
             print('Training with NLL loss')
 
 
-        hist, nbrs, mask, lat_enc, lon_enc, fut, op_mask = batch
+        hist, _, nbrs, _, mask, lat_enc, lon_enc, fut, op_mask = batch
 
         # moving data to gpu during training causes a lot of overhead 
         if self.args['use_cuda']:
@@ -58,7 +58,7 @@ class SocialEngine(IgniteEngine):
 
         # Forward pass
         if self.args['use_maneuvers']:
-            fut_pred, lat_pred, lon_pred = net(hist, nbrs, mask, lat_enc, lon_enc)
+            fut_pred, lat_pred, lon_pred = self.net(hist, nbrs, mask, lat_enc, lon_enc)
             # Pre-train with MSE loss to speed up training
             if epoch < self.pretrainEpochs:
                 l = maskedMSE(fut_pred, fut, op_mask)
@@ -69,7 +69,7 @@ class SocialEngine(IgniteEngine):
                 self.avg_lon_acc += (torch.sum(torch.max(lon_pred.data, 1)[1] == torch.max(lon_enc.data, 1)[1])).item() / lon_enc.size()[0]
 
         else:
-            fut_pred = net(hist, nbrs, mask, lat_enc, lon_enc)
+            fut_pred = self.net(hist, nbrs, mask, lat_enc, lon_enc)
             if self.args['nll_only']:
                 l = maskedNLL(fut_pred, fut, op_mask)
             else:
@@ -93,7 +93,7 @@ class SocialEngine(IgniteEngine):
         net.train_flag = False
         model.eval()
 
-        hist, nbrs, mask, lat_enc, lon_enc, fut, op_mask = data
+        hist, _, nbrs, _, mask, lat_enc, lon_enc, fut, op_mask = batch
 
         if self.args['use_cuda']:
             lstToCuda([hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask])
