@@ -25,6 +25,7 @@ class TraphicEngine(IgniteEngine):
         # remember to 0 these out
         self.avg_trn_loss = 0
 
+        self.metrics = {"Avg train loss": 0, "Avg val loss": 0 }
         ## validation metrics
         self.avg_val_loss = 0
         self.val_batch_count = 1
@@ -86,6 +87,7 @@ class TraphicEngine(IgniteEngine):
 
         # Track average train loss:
         self.avg_trn_loss += l.item()
+        self.metrics["Avg train loss"] += l.item() / 100.0
 
         return l.item()
 
@@ -123,6 +125,7 @@ class TraphicEngine(IgniteEngine):
                     l = maskedNLL(fut_pred, fut, op_mask)
 
         self.avg_val_loss += l.item()
+        self.metrics["Avg val loss"] += l.item()/ self.val_batch_count
 
         self.val_batch_count += 1
         return fut_pred, fut
@@ -153,14 +156,14 @@ class TraphicEngine(IgniteEngine):
         else:
             metrics = {"Avg train loss": self.avg_trn_loss / 100.0, "Avg val loss": self.avg_val_loss/self.val_batch_count }
 
-        pbar = ProgressBar(persist=True, postfix=metrics)
+        pbar = ProgressBar(persist=True, postfix=self.metrics)
         pbar.attach(self.trainer)
 
         ## attach hooks
         # evaluate after every batch
         self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
         # zero out metrics for next epoch
-        self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.zeroMetrics)
+        # self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.zeroMetrics)
 
 
     def start(self):
