@@ -142,9 +142,13 @@ class TraphicEngine(IgniteEngine):
         self.avg_val_loss = 0
         self.val_batch_count = 1
 
+        self.metrics["Avg val loss"] = 0 
+        self.metrics["Avg train loss"] = 0
+
         # only if using maneuvers
         self.avg_lat_acc = 0
         self.avg_lon_acc = 0
+
 
 
     def makeTrainer(self):
@@ -163,7 +167,7 @@ class TraphicEngine(IgniteEngine):
         # evaluate after every batch
         self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
         # zero out metrics for next epoch
-        # self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.zeroMetrics)
+        self.trainer.add_event_handler(Events.EPOCH_STARTED, self.zeroMetrics)
 
 
     def start(self):
