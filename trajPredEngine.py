@@ -52,12 +52,9 @@ class TrajPredEngine:
         elif epoch == self.pretrainEpochs:
             print('Training with NLL loss')
 
-        # hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
-
         # moving data to gpu during training causes a lot of overhead 
         if self.args['use_cuda']:
             lstToCuda(self.getModelInput(batch))
-            # lstToCuda([hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask])
 
         # Forward pass
         if self.args['use_maneuvers']:
@@ -98,10 +95,11 @@ class TrajPredEngine:
         self.net.train_flag = False
         self.net.eval()
 
-        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
+        # hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
+        fut, op_mask = self.getGT(batch)
 
         if self.args['use_cuda']:
-            lstToCuda([hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask])
+            lstToCuda(self.getModelInput(batch))
 
 
         # Forward pass
@@ -118,7 +116,7 @@ class TrajPredEngine:
                 avg_val_lat_acc += (torch.sum(torch.max(lat_pred.data, 1)[1] == torch.max(lat_enc.data, 1)[1])).item() / lat_enc.size()[0]
                 avg_val_lon_acc += (torch.sum(torch.max(lon_pred.data, 1)[1] == torch.max(lon_enc.data, 1)[1])).item() / lon_enc.size()[0]
         else:
-            fut_pred = self.net(hist,upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
+            fut_pred = self.net(*self.getModelInput(batch))
             if self.args['nll_only']:
                 l = maskedNLL(fut_pred, fut, op_mask)
             else:
