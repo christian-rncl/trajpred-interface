@@ -7,8 +7,8 @@ import warnings
 import math
 
 
-from traphicEngine import TraphicEngine
-# from socialEngine import SocialEngine
+# from traphicEngine import TraphicEngine
+from socialEngine import SocialEngine
 
 # ignite
 
@@ -32,7 +32,7 @@ args['num_lat_classes'] = 3
 args['num_lon_classes'] = 2
 args['train_flag'] = True
 args['use_maneuvers'] = False
-args['ours'] = True
+args['ours'] = False
 args['model_path'] = 'trained_models/m_false/cslstm_b_pretrain2_NGSIM.tar'
 args['nll_only'] = True
 args["pretrainEpochs"] = 6
