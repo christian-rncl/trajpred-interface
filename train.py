@@ -8,7 +8,7 @@ import math
 
 
 from traphicEngine import TraphicEngine
-from socialEngine import SocialEngine
+# from socialEngine import SocialEngine
 
 # ignite
 
