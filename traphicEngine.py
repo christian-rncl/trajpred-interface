@@ -11,9 +11,13 @@ class TraphicEngine(TrajPredEngine):
         super().__init__(net, optim, train_loader, val_loader, args)
 
     def getModelInput(self, batch) :
-        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, long_enc, _, _ = batch
-        return hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, long_enc
+        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, _, _ = batch
+        return [hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc]
 
     def getGT(self, batch):
         _, _, _, _, _, _, _, fut, op_mask = batch
         return fut, op_mask
+
+    def netPred(self, batch):
+        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, _, _ = batch
+        return self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)

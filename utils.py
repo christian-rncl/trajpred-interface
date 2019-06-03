@@ -6,10 +6,10 @@ import torch
 
 #___________________________________________________________________________________________________________________________
 
-## Christian Roncal 05/31
 def lstToCuda(lst):
     for item in lst:
         item.cuda()
+    return lst
 
 ### Dataset class for the NGSIM dataset
 class ngsimDataset(Dataset):

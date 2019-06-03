@@ -38,14 +38,16 @@ class traphicNet(nn.Module):
         self.num_lon_classes = args['num_lon_classes']
         self.soc_embedding_size = (((args['grid_size'][0]-4)+1)//2)*self.conv_3x1_depth
         self.upp_soc_embedding_size = (((args['upp_grid_size'][0]-4)+1)//2)*self.conv_3x1_depth
+        self.ours = args['ours']
         ## Define network weights
 
         # Input embedding layer
         self.ip_emb = torch.nn.Linear(2,self.input_embedding_size)
 
-        self.ip_emb_vel = torch.nn.Linear(2,self.input_embedding_size) # Behavioral Modification 3: Extra Inputs
-
-        self.ip_emb_nc = torch.nn.Linear(2,self.input_embedding_size)# Behavioral Modification 3: Extra Inputs
+                                                                                            # Behavioral Modification 3: Extra Inputs
+        if self.ours: self.ip_emb_vel = torch.nn.Linear(2,self.input_embedding_size)
+                                                                                            # Behavioral Modification 3: Extra Inputs
+        if self.ours: self.ip_emb_nc = torch.nn.Linear(2,self.input_embedding_size)
 
         # Encoder LSTM
         self.enc_lstm = torch.nn.LSTM(self.input_embedding_size,self.encoder_size,1)
@@ -54,7 +56,7 @@ class traphicNet(nn.Module):
         self.dyn_emb = torch.nn.Linear(self.encoder_size,self.dyn_embedding_size)
 
                                                                                             #Behavioral Modification 1: Weighting the neighbors' hidden vectors after the LSTM stage
-        self.beh_1 = torch.nn.Linear(self.encoder_size, self.encoder_size)
+        if self.ours: self.beh_1 = torch.nn.Linear(self.encoder_size, self.encoder_size)
 
         # Convolutional social pooling layer and social embedding layer
         self.soc_conv = torch.nn.Conv2d(self.encoder_size,self.soc_conv_depth,3)
@@ -68,9 +70,15 @@ class traphicNet(nn.Module):
 
         # Decoder LSTM
         if self.use_maneuvers:
-            self.dec_lstm = torch.nn.LSTM(self.upp_soc_embedding_size + self.soc_embedding_size + self.dyn_embedding_size + self.num_lat_classes + self.num_lon_classes, self.decoder_size)
+            if self.ours:
+                self.dec_lstm = torch.nn.LSTM(self.upp_soc_embedding_size + self.soc_embedding_size + self.dyn_embedding_size + self.num_lat_classes + self.num_lon_classes, self.decoder_size)
+            else:
+                self.dec_lstm = torch.nn.LSTM(self.soc_embedding_size + self.dyn_embedding_size + self.num_lat_classes + self.num_lon_classes, self.decoder_size)
         else:
-            self.dec_lstm = torch.nn.LSTM(self.upp_soc_embedding_size + self.soc_embedding_size + self.dyn_embedding_size, self.decoder_size,dropout = self.dropout_prob)
+            if self.ours:
+                self.dec_lstm = torch.nn.LSTM(self.upp_soc_embedding_size + self.soc_embedding_size + self.dyn_embedding_size, self.decoder_size,dropout = self.dropout_prob)
+            else:
+                self.dec_lstm = torch.nn.LSTM(self.soc_embedding_size + self.dyn_embedding_size, self.decoder_size,dropout = self.dropout_prob)
 
         #batch norm
         # self.bn_dec = torch.nn.BatchNorm1d(self.decoder_size)
@@ -87,8 +95,12 @@ class traphicNet(nn.Module):
         # Dropout
         self.dropout = nn.Dropout(self.dropout_prob)
 
-        self.op_lat = torch.nn.Linear(self.upp_soc_embedding_size + self.soc_embedding_size + self.dyn_embedding_size, self.num_lat_classes)
-        self.op_lon = torch.nn.Linear(self.upp_soc_embedding_size + self.soc_embedding_size + self.dyn_embedding_size, self.num_lon_classes)
+        if self.ours:
+            self.op_lat = torch.nn.Linear(self.upp_soc_embedding_size + self.soc_embedding_size + self.dyn_embedding_size, self.num_lat_classes)
+            self.op_lon = torch.nn.Linear(self.upp_soc_embedding_size + self.soc_embedding_size + self.dyn_embedding_size, self.num_lon_classes)
+        else:
+            self.op_lat = torch.nn.Linear(self.soc_embedding_size + self.dyn_embedding_size, self.num_lat_classes)
+            self.op_lon = torch.nn.Linear(self.soc_embedding_size + self.dyn_embedding_size, self.num_lon_classes)
 
         # Activations:
         # self.leaky_relu = torch.nn.LeakyReLU(0.1)
@@ -101,42 +113,47 @@ class traphicNet(nn.Module):
     def forward(self,hist, upp_nbrs, nbrs, upp_masks, masks,lat_enc,lon_enc):
 
         ## Forward pass hist:
-        temp = self.leaky_relu(torch.cat((self.ip_emb(hist[0:15,:,:]),self.ip_emb_vel(hist[16:,:,:])),0))
-        # if temp.shape[1]==self.decoder_size:
-        #     temp = self.bn_enc(temp)
-        _,(hist_enc,_) = self.enc_lstm(temp)
-        # _,(hist_enc,_) = self.enc_lstm(self.bn_enc(self.leaky_relu(torch.cat((self.ip_emb(hist[0:15,:,:]),self.ip_emb_vel(hist[16:,:,:])),0))))
-        hist_enc = self.dropout(hist_enc)
-
+        if self.ours:
+            temp = self.leaky_relu(torch.cat((self.ip_emb(hist[0:15,:,:]),self.ip_emb_vel(hist[16:,:,:])),0))
+            # if temp.shape[1]==self.decoder_size:
+            #     temp = self.bn_enc(temp)
+            _,(hist_enc,_) = self.enc_lstm(temp)
+            # _,(hist_enc,_) = self.enc_lstm(self.bn_enc(self.leaky_relu(torch.cat((self.ip_emb(hist[0:15,:,:]),self.ip_emb_vel(hist[16:,:,:])),0))))
+            hist_enc = self.dropout(hist_enc)
+        else:
+            _,(hist_enc,_) = self.enc_lstm(self.leaky_relu((self.ip_emb(hist))))
         hist_enc = self.leaky_relu(self.dyn_emb(hist_enc.view(hist_enc.shape[1],hist_enc.shape[2])))
 
         ## Forward pass nbrs
-        # self.bn1_size = nbrs.shape[1]
-        # self.bn1 = torch.nn.BatchNorm1d(self.bn1_size)
-        _, (nbrs_enc,_) = self.enc_lstm(self.leaky_relu(torch.cat((self.ip_emb(nbrs[0:15,:,:]),self.ip_emb_vel(nbrs[16:,:,:])),0)))
-        nbrs_enc = self.dropout(nbrs_enc)
-
+        if self.ours:
+            # self.bn1_size = nbrs.shape[1]
+            # self.bn1 = torch.nn.BatchNorm1d(self.bn1_size)
+            _, (nbrs_enc,_) = self.enc_lstm(self.leaky_relu(torch.cat((self.ip_emb(nbrs[0:15,:,:]),self.ip_emb_vel(nbrs[16:,:,:])),0)))
+            nbrs_enc = self.dropout(nbrs_enc)
+        else:
+            _, (nbrs_enc,_) = self.enc_lstm(self.leaky_relu((self.ip_emb(nbrs))))
         nbrs_enc = nbrs_enc.view(nbrs_enc.shape[1], nbrs_enc.shape[2])
 
-        # bn2_size = upp_nbrs.shape[1]
-        # self.bn2 = torch.nn.BatchNorm1d(bn2_size)
-        _, (upp_nbrs_enc,_) = self.enc_lstm(self.leaky_relu(torch.cat((self.ip_emb(upp_nbrs[0:15,:,:]),self.ip_emb_vel(upp_nbrs[16:,:,:])),0)))
-        upp_nbrs_enc = self.dropout(upp_nbrs_enc)
-        upp_nbrs_enc = upp_nbrs_enc.view(upp_nbrs_enc.shape[1], upp_nbrs_enc.shape[2])
+        if self.ours:                                                         # Behavioral Modification 2: Adding Kinetic Flow Layer
+            # bn2_size = upp_nbrs.shape[1]
+            # self.bn2 = torch.nn.BatchNorm1d(bn2_size)
+            _, (upp_nbrs_enc,_) = self.enc_lstm(self.leaky_relu(torch.cat((self.ip_emb(upp_nbrs[0:15,:,:]),self.ip_emb_vel(upp_nbrs[16:,:,:])),0)))
+            upp_nbrs_enc = self.dropout(upp_nbrs_enc)
+            upp_nbrs_enc = upp_nbrs_enc.view(upp_nbrs_enc.shape[1], upp_nbrs_enc.shape[2])
 
-        #Behavioral Modification 1: Weighting the hidden vectors
-        nbrs_enc = self.leaky_relu(self.beh_1(nbrs_enc))
-        upp_nbrs_enc = self.leaky_relu(self.beh_1(upp_nbrs_enc))
+                                                                                    #Behavioral Modification 1: Weighting the hidden vectors
+            nbrs_enc = self.leaky_relu(self.beh_1(nbrs_enc))
+            upp_nbrs_enc = self.leaky_relu(self.beh_1(upp_nbrs_enc))
 
         ## Masked scatter
         soc_enc = torch.zeros_like(masks).float()
         soc_enc = soc_enc.masked_scatter_(masks, nbrs_enc)
         soc_enc = soc_enc.permute(0,3,2,1)
 
-                                                                           # Behavioral Modification 2: Adding Kinetic Flow Layer
-        upp_soc_enc = torch.zeros_like(upp_masks).float()
-        upp_soc_enc = upp_soc_enc.masked_scatter_(upp_masks, upp_nbrs_enc)
-        upp_soc_enc = upp_soc_enc.permute(0,3,2,1)
+        if self.ours:                                                                   # Behavioral Modification 2: Adding Kinetic Flow Layer
+            upp_soc_enc = torch.zeros_like(upp_masks).float()
+            upp_soc_enc = upp_soc_enc.masked_scatter_(upp_masks, upp_nbrs_enc)
+            upp_soc_enc = upp_soc_enc.permute(0,3,2,1)
         #
 
         ## Apply convolutional social pooling:
@@ -144,8 +161,9 @@ class traphicNet(nn.Module):
         soc_enc = soc_enc.view(-1,self.soc_embedding_size)
 
                                                                                # Behavioral Modification 2: Adding Kinetic Flow Layer
-        upp_soc_enc = self.soc_maxpool(self.leaky_relu(self.dropout(self.conv_3x1(self.bn_conv(self.leaky_relu(self.soc_conv(upp_soc_enc)))))))
-        upp_soc_enc = upp_soc_enc.view(-1,self.upp_soc_embedding_size)
+        if self.ours:
+            upp_soc_enc = self.soc_maxpool(self.leaky_relu(self.dropout(self.conv_3x1(self.bn_conv(self.leaky_relu(self.soc_conv(upp_soc_enc)))))))
+            upp_soc_enc = upp_soc_enc.view(-1,self.upp_soc_embedding_size)
 
         ## Apply fc soc pooling
         # soc_enc = soc_enc.contiguous()
@@ -153,9 +171,10 @@ class traphicNet(nn.Module):
         # soc_enc = self.leaky_relu(self.soc_fc(soc_enc))
 
         ## Concatenate encodings:
-        enc = torch.cat((self.bnupp_soc_enc(upp_soc_enc), self.bn_soc_enc(soc_enc),self.bn_hist_enc(hist_enc)),1)
-        # else:
-        #     enc = torch.cat((soc_enc,hist_enc),1)
+        if self.ours:
+            enc = torch.cat((self.bnupp_soc_enc(upp_soc_enc), self.bn_soc_enc(soc_enc),self.bn_hist_enc(hist_enc)),1)
+        else:
+            enc = torch.cat((soc_enc,hist_enc),1)
 
 
         if self.use_maneuvers:
@@ -196,7 +215,7 @@ class traphicNet(nn.Module):
         fut_pred = fut_pred.permute(1, 0, 2)
         fut_pred = self.dropout(fut_pred)
         fut_pred = outputActivation(fut_pred)
-        return fut_pred
+        return fut_pred 
 
 
 

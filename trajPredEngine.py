@@ -16,6 +16,7 @@ class TrajPredEngine:
         self.train_loader = train_loader
         self.val_loader = val_loader
 
+
         ## training metrics to keep track of, consider making a metrics class
         # remember to 0 these out
         self.avg_trn_loss = 0
@@ -40,36 +41,40 @@ class TrajPredEngine:
     def getGT(self, batch):
         raise NotImplementedError
 
+
+    def netPred(self, batch):
+        raise NotImplementedError
+
     def train_batch(self, engine, batch):
 
         epoch = engine.state.epoch
-        i = engine.state.iteration
+        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
 
-        fut, op_mask = self.getGT(batch)
-
-        if epoch == 0:
-            print('Pre-training with MSE loss')
-        elif epoch == self.pretrainEpochs:
-            print('Training with NLL loss')
-
-        # moving data to gpu during training causes a lot of overhead 
         if self.args['use_cuda']:
-            lstToCuda(self.getModelInput(batch))
+            hist = hist.cuda()
+            nbrs = nbrs.cuda()
+            upp_nbrs = upp_nbrs.cuda()
+            mask = mask.cuda()
+            upp_mask = upp_mask.cuda()
+            lat_enc = lat_enc.cuda()
+            lon_enc = lon_enc.cuda()
+            fut = fut.cuda()
+            op_mask = op_mask.cuda()
 
         # Forward pass
-        if self.args['use_maneuvers']:
-            fut_pred, lat_pred, lon_pred = self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
-            # Pre-train with MSE loss to speed up training
-            if epoch < self.pretrainEpochs:
-                l = maskedMSE(fut_pred, fut, op_mask)
-            else:
-            # Train with NLL loss
-                l = maskedNLL(fut_pred, fut, op_mask) + crossEnt(lat_pred, lat_enc) + crossEnt(lon_pred, lon_enc)
-                self.avg_lat_acc += (torch.sum(torch.max(lat_pred.data, 1)[1] == torch.max(lat_enc.data, 1)[1])).item() / lat_enc.size()[0]
-                self.avg_lon_acc += (torch.sum(torch.max(lon_pred.data, 1)[1] == torch.max(lon_enc.data, 1)[1])).item() / lon_enc.size()[0]
+        # if args['use_maneuvers']:
+        #     fut_pred, lat_pred, lon_pred = net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
+        #     # Pre-train with MSE loss to speed up training
+        #     if epoch_num < pretrainEpochs:
+        #         l = maskedMSE(fut_pred, fut, op_mask)
+        #     else:
+        #     # Train with NLL loss
+        #         l = maskedNLL(fut_pred, fut, op_mask) + crossEnt(lat_pred, lat_enc) + crossEnt(lon_pred, lon_enc)
+        #         avg_lat_acc += (torch.sum(torch.max(lat_pred.data, 1)[1] == torch.max(lat_enc.data, 1)[1])).item() / lat_enc.size()[0]
+        #         avg_lon_acc += (torch.sum(torch.max(lon_pred.data, 1)[1] == torch.max(lon_enc.data, 1)[1])).item() / lon_enc.size()[0]
+        # else:
 
-        else:
-            fut_pred = self.net(*self.getModelInput(batch))
+            fut_pred  = self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
 
             if self.args['nll_only']:
                 l = maskedNLL(fut_pred, fut, op_mask)
@@ -85,9 +90,36 @@ class TrajPredEngine:
         a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
         self.optim.step()
 
-        # Track average train loss:
-        self.avg_trn_loss += l.item()
-        self.metrics["Avg train loss"] += l.item() / 100.0
+
+        # moving data to gpu during training causes a lot of overhead 
+        # if self.args['use_cuda']:
+        #     batch = lstToCuda(batch)
+
+        # if epoch == 0:
+        #     print('Pre-training with MSE loss')
+        # elif epoch == self.pretrainEpochs:
+        #     print('Training with NLL loss')
+
+        # fut, op_mask = self.getGT(batch)
+        # fut_pred = self.net(*self.getModelInput(batch))
+
+        # if self.args['nll_only']:
+        #     l = maskedNLL(fut_pred, fut, op_mask)
+        # else:
+        #     if epoch < self.pretrainEpochs:
+        #         l = maskedMSE(fut_pred, fut, op_mask)
+        #     else:
+        #         l = maskedNLL(fut_pred, fut, op_mask)
+
+        # # Backprop and update weights
+        # self.optim.zero_grad()
+        # l.backward()
+        # a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
+        # self.optim.step()
+
+        # # Track average train loss:
+        # self.avg_trn_loss += l.item()
+        # self.metrics["Avg train loss"] += l.item() / 100.0
 
         return l.item()
 

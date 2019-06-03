@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 ## Network Arguments
 args = {}
 args['dropout_prob'] = 0.5
-args['use_cuda'] = False
+args['use_cuda'] = True
 args['encoder_size'] = 64
 args['decoder_size'] = 128
 args['in_length'] = 16
@@ -52,7 +52,9 @@ else:
 # net.load_state_dict(torch.load('trained_models/m_false/cslstm_b_pretrain2_NGSIM.tar'), strict=False)
 
 if args['use_cuda']:
+    print("Using cuda")
     net = net.cuda()
+    # net = net.to("cuda")
 
 ## Initialize optimizer
 optim = torch.optim.Adam(net.parameters(),lr=lr)
@@ -80,6 +82,8 @@ if verbose:
 if args['ours']:
     if verbose:
         print("Training TRAPHIC")
+
+    net.cuda()
     traphic = TraphicEngine(net, optim, trDataloader, valDataloader, args)
     traphic.start()
 else:
