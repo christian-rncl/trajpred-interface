@@ -46,52 +46,32 @@ class TrajPredEngine:
         raise NotImplementedError
 
     def train_batch(self, engine, batch):
+        self.net.train_flag = True
 
         epoch = engine.state.epoch
-        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
+        _, _, _, _, _, _, _, fut, op_mask = batch
 
-        if self.args['use_cuda']:
-            hist = hist.cuda()
-            nbrs = nbrs.cuda()
-            upp_nbrs = upp_nbrs.cuda()
-            mask = mask.cuda()
-            upp_mask = upp_mask.cuda()
-            lat_enc = lat_enc.cuda()
-            lon_enc = lon_enc.cuda()
-            fut = fut.cuda()
-            op_mask = op_mask.cuda()
+        fut.cuda()
+        op_mask.cuda()
 
-        # Forward pass
-        # if args['use_maneuvers']:
-        #     fut_pred, lat_pred, lon_pred = net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
-        #     # Pre-train with MSE loss to speed up training
-        #     if epoch_num < pretrainEpochs:
-        #         l = maskedMSE(fut_pred, fut, op_mask)
-        #     else:
-        #     # Train with NLL loss
-        #         l = maskedNLL(fut_pred, fut, op_mask) + crossEnt(lat_pred, lat_enc) + crossEnt(lon_pred, lon_enc)
-        #         avg_lat_acc += (torch.sum(torch.max(lat_pred.data, 1)[1] == torch.max(lat_enc.data, 1)[1])).item() / lat_enc.size()[0]
-        #         avg_lon_acc += (torch.sum(torch.max(lon_pred.data, 1)[1] == torch.max(lon_enc.data, 1)[1])).item() / lon_enc.size()[0]
-        # else:
+        # fut_pred  = self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
+        fut_pred = self.netPred(batch)
 
-            fut_pred  = self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
-
-            if self.args['nll_only']:
-                l = maskedNLL(fut_pred, fut, op_mask)
+        if self.args['nll_only']:
+            l = maskedNLL(fut_pred, fut, op_mask)
+        else:
+            if epoch < self.pretrainEpochs:
+                l = maskedMSE(fut_pred, fut, op_mask)
             else:
-                if epoch < self.pretrainEpochs:
-                    l = maskedMSE(fut_pred, fut, op_mask)
-                else:
-                    l = maskedNLL(fut_pred, fut, op_mask)
+                l = maskedNLL(fut_pred, fut, op_mask)
 
         # Backprop and update weights
         self.optim.zero_grad()
         l.backward()
-        a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
+        # a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
         self.optim.step()
 
 
-        # moving data to gpu during training causes a lot of overhead 
         # if self.args['use_cuda']:
         #     batch = lstToCuda(batch)
 
@@ -135,27 +115,14 @@ class TrajPredEngine:
 
 
         # Forward pass
-        if self.args['use_maneuvers']:
+        fut_pred = self.net(*self.getModelInput(batch))
+        if self.args['nll_only']:
+            l = maskedNLL(fut_pred, fut, op_mask)
+        else:
             if epoch_num < pretrainEpochs:
-                # During pre-training with MSE loss, validate with MSE for true maneuver class trajectory
-                self.net.train_flag = True
-                fut_pred, _ , _ = self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
                 l = maskedMSE(fut_pred, fut, op_mask)
             else:
-                # During training with NLL loss, validate with NLL over multi-modal distribution
-                fut_pred, lat_pred, lon_pred = net(hist,upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
-                l = maskedNLLTest(fut_pred, lat_pred, lon_pred, fut, op_mask,avg_along_time = True)
-                avg_val_lat_acc += (torch.sum(torch.max(lat_pred.data, 1)[1] == torch.max(lat_enc.data, 1)[1])).item() / lat_enc.size()[0]
-                avg_val_lon_acc += (torch.sum(torch.max(lon_pred.data, 1)[1] == torch.max(lon_enc.data, 1)[1])).item() / lon_enc.size()[0]
-        else:
-            fut_pred = self.net(*self.getModelInput(batch))
-            if self.args['nll_only']:
                 l = maskedNLL(fut_pred, fut, op_mask)
-            else:
-                if epoch_num < pretrainEpochs:
-                    l = maskedMSE(fut_pred, fut, op_mask)
-                else:
-                    l = maskedNLL(fut_pred, fut, op_mask)
 
 
         self.avg_val_loss += l.item()
@@ -190,8 +157,8 @@ class TrajPredEngine:
 
         ## attach hooks
         # evaluate after every batch
-        self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
-        self.trainer.add_event_handler(Events.ITERATION_COMPLETED, self.zeroMetrics)
+        # self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
+        # self.trainer.add_event_handler(Events.ITERATION_COMPLETED, self.zeroMetrics)
         # zero out metrics for next epoch
 
 

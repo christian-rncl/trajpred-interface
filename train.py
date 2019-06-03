@@ -66,8 +66,8 @@ if verbose:
     print("*" * 3, "Creating dataset and dataloaders...")
 
 ## Initialize data loaders
-trSet = ngsimDataset('data/TrainSetTRAF12.mat')
-valSet = ngsimDataset('data/ValSetTRAF12.mat')
+trSet = ngsimDataset('data/TrainSetTRAF.mat')
+valSet = ngsimDataset('data/ValSetTRAF.mat')
 trDataloader = DataLoader(trSet,batch_size=batch_size,shuffle=True,num_workers=8,collate_fn=trSet.collate_fn)
 valDataloader = DataLoader(valSet,batch_size=batch_size,shuffle=True,num_workers=8,collate_fn=valSet.collate_fn)
 
@@ -82,8 +82,6 @@ if verbose:
 if args['ours']:
     if verbose:
         print("Training TRAPHIC")
-
-    net.cuda()
     traphic = TraphicEngine(net, optim, trDataloader, valDataloader, args)
     traphic.start()
 else:
