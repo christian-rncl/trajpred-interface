@@ -57,6 +57,8 @@ class TrajPredEngine:
         # fut_pred  = self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
         fut_pred = self.netPred(batch)
 
+        print(fut_pred.is_cuda, fut.is_cuda, op_mask.is_cuda)
+
         if self.args['nll_only']:
             l = maskedNLL(fut_pred, fut, op_mask)
         else:
@@ -68,7 +70,6 @@ class TrajPredEngine:
         # Backprop and update weights
         self.optim.zero_grad()
         l.backward()
-        # a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
         self.optim.step()
 
 
