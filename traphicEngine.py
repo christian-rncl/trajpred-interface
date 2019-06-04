@@ -10,6 +10,7 @@ class TraphicEngine(TrajPredEngine):
 
     def __init__(self, net, optim, train_loader, val_loader, args):
         super().__init__(net, optim, train_loader, val_loader, args)
+        
         self.save_name = "traphic"
 
     def netPred(self, batch):
