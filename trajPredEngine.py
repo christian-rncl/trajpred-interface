@@ -51,18 +51,15 @@ class TrajPredEngine:
         epoch = engine.state.epoch
         _, _, _, _, _, _, _, fut, op_mask = batch
 
-        fut.cuda()
-        op_mask.cuda()
-
-        # fut_pred  = self.net(hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc)
         fut_pred = self.netPred(batch)
-
-        print(fut_pred.is_cuda, fut.is_cuda, op_mask.is_cuda)
+        fut = fut.cuda()
+        op_mask = op_mask.cuda()
 
         if self.args['nll_only']:
             l = maskedNLL(fut_pred, fut, op_mask)
         else:
             if epoch < self.pretrainEpochs:
+
                 l = maskedMSE(fut_pred, fut, op_mask)
             else:
                 l = maskedNLL(fut_pred, fut, op_mask)
@@ -72,35 +69,11 @@ class TrajPredEngine:
         l.backward()
         self.optim.step()
 
+        a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
 
-        # if self.args['use_cuda']:
-        #     batch = lstToCuda(batch)
-
-        # if epoch == 0:
-        #     print('Pre-training with MSE loss')
-        # elif epoch == self.pretrainEpochs:
-        #     print('Training with NLL loss')
-
-        # fut, op_mask = self.getGT(batch)
-        # fut_pred = self.net(*self.getModelInput(batch))
-
-        # if self.args['nll_only']:
-        #     l = maskedNLL(fut_pred, fut, op_mask)
-        # else:
-        #     if epoch < self.pretrainEpochs:
-        #         l = maskedMSE(fut_pred, fut, op_mask)
-        #     else:
-        #         l = maskedNLL(fut_pred, fut, op_mask)
-
-        # # Backprop and update weights
-        # self.optim.zero_grad()
-        # l.backward()
-        # a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
-        # self.optim.step()
-
-        # # Track average train loss:
-        # self.avg_trn_loss += l.item()
-        # self.metrics["Avg train loss"] += l.item() / 100.0
+        # Track average train loss:
+        self.avg_trn_loss += l.item()
+        self.metrics["Avg train loss"] += l.item() / 100.0
 
         return l.item()
 
