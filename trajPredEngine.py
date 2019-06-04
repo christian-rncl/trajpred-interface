@@ -102,7 +102,7 @@ class TrajPredEngine:
 
     def eval_batch(self, engine, batch):
         self.net.train_flag = False
-        self.net.eval()
+        # self.net.eval()
 
         # hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
         _, _, _, _, _, _, _, fut, op_mask = batch
