@@ -4,6 +4,7 @@ import time
 import math
 import torch
 from ignite.contrib.handlers import ProgressBar
+import datetime
 
 class TrajPredEngine:
 
@@ -15,7 +16,6 @@ class TrajPredEngine:
         self.optim = optim
         self.train_loader = train_loader
         self.val_loader = val_loader
-
 
         ## training metrics to keep track of, consider making a metrics class
         # remember to 0 these out
@@ -35,15 +35,17 @@ class TrajPredEngine:
 
         self.makeTrainer()
 
-    def getModelInput(self, batch) :
-        raise NotImplementedError
-
-    def getGT(self, batch):
-        raise NotImplementedError
-
-
     def netPred(self, batch):
         raise NotImplementedError
+
+    def saveModel(self):
+        if self.save_name not None:
+            raise NotImplementedError
+        else:
+            currentDT =  datetime.datetime.now()
+            torch.save(self.net.state_dict(), "trained_models/{}_{}_{}_{}_{}_{}.tar".format(self.save_name,
+            currentDT.hour, currentDT.minute, currentDT.second, currentDT.month, currentDT.year))
+
 
     def train_batch(self, engine, batch):
         self.net.train_flag = True
@@ -68,32 +70,6 @@ class TrajPredEngine:
         l.backward()
         self.optim.step()
 
-
-        # if self.args['use_cuda']:
-        #     batch = lstToCuda(batch)
-
-        # if epoch == 0:
-        #     print('Pre-training with MSE loss')
-        # elif epoch == self.pretrainEpochs:
-        #     print('Training with NLL loss')
-
-        # fut, op_mask = self.getGT(batch)
-        # fut_pred = self.net(*self.getModelInput(batch))
-
-        # if self.args['nll_only']:
-        #     l = maskedNLL(fut_pred, fut, op_mask)
-        # else:
-        #     if epoch < self.pretrainEpochs:
-        #         l = maskedMSE(fut_pred, fut, op_mask)
-        #     else:
-        #         l = maskedNLL(fut_pred, fut, op_mask)
-
-        # # Backprop and update weights
-        # self.optim.zero_grad()
-        # l.backward()
-        # a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
-        # self.optim.step()
-
         # Track average train loss:
         self.avg_trn_loss += l.item()
         self.metrics["Avg train loss"] += l.item() / 100.0
@@ -102,9 +78,7 @@ class TrajPredEngine:
 
     def eval_batch(self, engine, batch):
         self.net.train_flag = False
-        self.net.eval()
 
-        # hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
         _, _, _, _, _, _, _, fut, op_mask = batch
         fut_pred = self.netPred(batch)
         fut = fut.cuda()
@@ -153,6 +127,7 @@ class TrajPredEngine:
         # evaluate after every batch
         self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
         self.trainer.add_event_handler(Events.ITERATION_COMPLETED, self.zeroMetrics)
+        self.trainer.add_event_handler(Events.COMPLETED, self.saveModel)
         # zero out metrics for next epoch
 
 

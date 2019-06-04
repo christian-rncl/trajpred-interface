@@ -1,5 +1,6 @@
 from trajPredEngine import TrajPredEngine
 import torch
+import datetime
 
 class TraphicEngine(TrajPredEngine):
     """
@@ -9,14 +10,7 @@ class TraphicEngine(TrajPredEngine):
 
     def __init__(self, net, optim, train_loader, val_loader, args):
         super().__init__(net, optim, train_loader, val_loader, args)
-
-    def getModelInput(self, batch) :
-        hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, _, _ = batch
-        return [hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc]
-
-    def getGT(self, batch):
-        _, _, _, _, _, _, _, fut, op_mask = batch
-        return fut, op_mask
+        self.save_name = "traphic"
 
     def netPred(self, batch):
         hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch

@@ -1,0 +1,6 @@
+model_checkpoint_path: "social_model.ckpt-1599"
+all_model_checkpoint_paths: "social_model.ckpt-1595"
+all_model_checkpoint_paths: "social_model.ckpt-1596"
+all_model_checkpoint_paths: "social_model.ckpt-1597"
+all_model_checkpoint_paths: "social_model.ckpt-1598"
+all_model_checkpoint_paths: "social_model.ckpt-1599"
