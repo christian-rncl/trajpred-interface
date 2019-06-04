@@ -47,10 +47,9 @@ class TrajPredEngine:
 
     def train_batch(self, engine, batch):
         self.net.train_flag = True
-
         epoch = engine.state.epoch
-        _, _, _, _, _, _, _, fut, op_mask = batch
 
+        _, _, _, _, _, _, _, fut, op_mask = batch
         fut_pred = self.netPred(batch)
         fut = fut.cuda()
         op_mask = op_mask.cuda()
@@ -69,7 +68,31 @@ class TrajPredEngine:
         l.backward()
         self.optim.step()
 
-        a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
+
+        # if self.args['use_cuda']:
+        #     batch = lstToCuda(batch)
+
+        # if epoch == 0:
+        #     print('Pre-training with MSE loss')
+        # elif epoch == self.pretrainEpochs:
+        #     print('Training with NLL loss')
+
+        # fut, op_mask = self.getGT(batch)
+        # fut_pred = self.net(*self.getModelInput(batch))
+
+        # if self.args['nll_only']:
+        #     l = maskedNLL(fut_pred, fut, op_mask)
+        # else:
+        #     if epoch < self.pretrainEpochs:
+        #         l = maskedMSE(fut_pred, fut, op_mask)
+        #     else:
+        #         l = maskedNLL(fut_pred, fut, op_mask)
+
+        # # Backprop and update weights
+        # self.optim.zero_grad()
+        # l.backward()
+        # a = torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
+        # self.optim.step()
 
         # Track average train loss:
         self.avg_trn_loss += l.item()
@@ -82,11 +105,10 @@ class TrajPredEngine:
         self.net.eval()
 
         # hist, upp_nbrs, nbrs, upp_mask, mask, lat_enc, lon_enc, fut, op_mask = batch
-        fut, op_mask = self.getGT(batch)
-
-        if self.args['use_cuda']:
-            lstToCuda(self.getModelInput(batch))
-
+        _, _, _, _, _, _, _, fut, op_mask = batch
+        fut_pred = self.netPred(batch)
+        fut = fut.cuda()
+        op_mask = op_mask.cuda()
 
         # Forward pass
         fut_pred = self.net(*self.getModelInput(batch))
@@ -98,11 +120,10 @@ class TrajPredEngine:
             else:
                 l = maskedNLL(fut_pred, fut, op_mask)
 
-
         self.avg_val_loss += l.item()
         self.metrics["Avg val loss"] += l.item()/ self.val_batch_count
-
         self.val_batch_count += 1
+
         return fut_pred, fut
 
     def validate(self, engine):
@@ -131,8 +152,8 @@ class TrajPredEngine:
 
         ## attach hooks
         # evaluate after every batch
-        # self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
-        # self.trainer.add_event_handler(Events.ITERATION_COMPLETED, self.zeroMetrics)
+        self.trainer.add_event_handler(Events.EPOCH_COMPLETED, self.validate)
+        self.trainer.add_event_handler(Events.ITERATION_COMPLETED, self.zeroMetrics)
         # zero out metrics for next epoch
 
 
