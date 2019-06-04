@@ -9,6 +9,9 @@ import math
 
 from traphicEngine import TraphicEngine
 from socialEngine import SocialEngine
+from sganArgs import args as sgan_args
+# from litmethods import sgan_master
+from sganTrain import main as sganMain
 
 # ignite
 
@@ -41,51 +44,63 @@ args["bs"] = 128
 batch_size = 128
 lr=1e-3
 verbose= True
+# args['model'] = "traphic"
+args['model'] = "sgan"
 
 
-# Initialize network
-if args['ours']:
-    net = traphicNet(args)
-else:
-    net = highwayNet(args)
+model = args["model"]
 
-# net.load_state_dict(torch.load('trained_models/m_false/cslstm_b_pretrain2_NGSIM.tar'), strict=False)
+def runPytorchModel(model, args):
+    # Initialize network
+    if args['ours']:
+        net = traphicNet(args)
+    else:
+        net = highwayNet(args)
 
-if args['use_cuda']:
-    print("Using cuda")
-    net = net.cuda()
-    # net = net.to("cuda")
+    # net.load_state_dict(torch.load('trained_models/m_false/cslstm_b_pretrain2_NGSIM.tar'), strict=False)
 
-## Initialize optimizer
-optim = torch.optim.Adam(net.parameters(),lr=lr)
-crossEnt = torch.nn.BCELoss()
+    if args['use_cuda']:
+        print("Using cuda")
+        net = net.cuda()
+        # net = net.to("cuda")
 
-if verbose:
-    print("*" * 3, "Using model: ", net)
-    print("*" * 3, "Optim: ", optim)
-    print("*" * 3, "Creating dataset and dataloaders...")
+    ## Initialize optimizer
+    optim = torch.optim.Adam(net.parameters(),lr=lr)
+    crossEnt = torch.nn.BCELoss()
 
-## Initialize data loaders
-trSet = ngsimDataset('data/TrainSetTRAF.mat')
-valSet = ngsimDataset('data/ValSetTRAF.mat')
-trDataloader = DataLoader(trSet,batch_size=batch_size,shuffle=True,num_workers=8,collate_fn=trSet.collate_fn)
-valDataloader = DataLoader(valSet,batch_size=batch_size,shuffle=True,num_workers=8,collate_fn=valSet.collate_fn)
-
-## Variables holding train and validation loss values:
-train_loss = []
-val_loss = []
-prev_val_loss = math.inf
-
-if verbose:
-    print("starting training...")
-
-if args['ours']:
     if verbose:
-        print("Training TRAPHIC")
-    traphic = TraphicEngine(net, optim, trDataloader, valDataloader, args)
-    traphic.start()
-else:
+        print("*" * 3, "Using model: ", net)
+        print("*" * 3, "Optim: ", optim)
+        print("*" * 3, "Creating dataset and dataloaders...")
+
+    ## Initialize data loaders
+    trSet = ngsimDataset('data/TrainSetTRAF.mat')
+    valSet = ngsimDataset('data/ValSetTRAF.mat')
+    trDataloader = DataLoader(trSet,batch_size=batch_size,shuffle=True,num_workers=8,collate_fn=trSet.collate_fn)
+    valDataloader = DataLoader(valSet,batch_size=batch_size,shuffle=True,num_workers=8,collate_fn=valSet.collate_fn)
+
     if verbose:
-        print("Training conv social pooling")
-    social = SocialEngine(net, optim, trDataloader, valDataloader, args)
-    social.start()
+        print("starting training...")
+
+    if args['ours']:
+        if verbose:
+            print("Training TRAPHIC")
+        traphic = TraphicEngine(net, optim, trDataloader, valDataloader, args)
+        traphic.start()
+    else:
+        if verbose:
+            print("Training conv social pooling")
+        social = SocialEngine(net, optim, trDataloader, valDataloader, args)
+        social.start()
+
+def runTFModel(model, args):
+    if model == "sgan":
+        sganMain(sgan_args)
+    elif model == "social-lstm":
+        pass
+
+
+if model == "traphic" or model == "deo":
+    runPytorchModel(model, args)
+else:
+    runTFModel(model, args)
