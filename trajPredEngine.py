@@ -111,7 +111,6 @@ class TrajPredEngine:
         op_mask = op_mask.cuda()
 
         # Forward pass
-        fut_pred = self.net(*self.getModelInput(batch))
         if self.args['nll_only']:
             l = maskedNLL(fut_pred, fut, op_mask)
         else:
