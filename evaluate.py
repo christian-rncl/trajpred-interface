@@ -7,8 +7,6 @@ import time
 import warnings
 warnings.filterwarnings("ignore")
 
-
-
 ## Network Arguments
 args = {}
 args['dropout_prob'] = 0.5

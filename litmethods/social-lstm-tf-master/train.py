@@ -58,7 +58,7 @@ def main():
 
 
 def train(args):
-    datasets = range(2)
+    datasets = list(range(2))
     # Remove the leaveDataset from datasets
     datasets.remove(args.leaveDataset)
 

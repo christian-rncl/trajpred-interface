@@ -3,7 +3,7 @@ import argparse
 import os
 import time
 import pickle
-import ipdb
+# import ipdb
 
 from social_model import SocialModel
 from utils_ours import SocialDataLoader
@@ -71,7 +71,7 @@ def main():
 
 
 def train(args):
-    datasets = range(6)
+    datasets = list(range(6))
     # Remove the leaveDataset from datasets
     datasets.remove(args.leaveDataset)
 

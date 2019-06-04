@@ -45,14 +45,15 @@ batch_size = 128
 lr=1e-3
 verbose= True
 # args['model'] = "traphic"
-args['model'] = "sgan"
+# args['model'] = "sgan"
+args['model'] = "deo"
 
 
 model = args["model"]
 
 def runPytorchModel(model, args):
     # Initialize network
-    if args['ours']:
+    if args['model'] == "traphic":
         net = traphicNet(args)
     else:
         net = highwayNet(args)
@@ -82,7 +83,7 @@ def runPytorchModel(model, args):
     if verbose:
         print("starting training...")
 
-    if args['ours']:
+    if args['model'] == "traphic":
         if verbose:
             print("Training TRAPHIC")
         traphic = TraphicEngine(net, optim, trDataloader, valDataloader, args)
@@ -95,6 +96,7 @@ def runPytorchModel(model, args):
 
 def runTFModel(model, args):
     if model == "sgan":
+        print("Training sgan")
         sganMain(sgan_args)
     elif model == "social-lstm":
         pass
