@@ -35,11 +35,13 @@ class TrajPredEngine:
 
         self.makeTrainer()
 
+        self.save_name = None
+
     def netPred(self, batch):
         raise NotImplementedError
 
-    def saveModel(self):
-        if self.save_name not None:
+    def saveModel(self, engine):
+        if self.save_name != None:
             raise NotImplementedError
         else:
             currentDT =  datetime.datetime.now()
