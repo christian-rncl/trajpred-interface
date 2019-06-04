@@ -41,12 +41,9 @@ class TrajPredEngine:
         raise NotImplementedError
 
     def saveModel(self, engine):
-        if self.save_name != None:
-            raise NotImplementedError
-        else:
-            currentDT =  datetime.datetime.now()
-            torch.save(self.net.state_dict(), "trained_models/{}_{}_{}_{}_{}_{}.tar".format(self.save_name,
-            currentDT.hour, currentDT.minute, currentDT.second, currentDT.month, currentDT.year))
+        currentDT =  datetime.datetime.now()
+        torch.save(self.net.state_dict(), "trained_models/{}_{}_{}_{}_{}_{}.tar".format(self.save_name,
+        currentDT.hour, currentDT.minute, currentDT.second, currentDT.month, currentDT.year))
 
 
     def train_batch(self, engine, batch):
