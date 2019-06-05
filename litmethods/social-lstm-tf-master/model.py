@@ -69,10 +69,13 @@ class Model():
             output_w = tf.get_variable("output_w", [args.rnn_size, output_size], initializer=tf.truncated_normal_initializer(stddev=0.01), trainable=True)
             output_b = tf.get_variable("output_b", [output_size], initializer=tf.constant_initializer(0.01), trainable=True)
 
-        # Split inputs according to sequences.
-        inputs = tf.split(1, args.seq_length, self.input_data, tf.int32)
+        inputs = tf.split(1, args.seq_length, tf.cast(input_data_dim, tf.int32), tf.int32)
         # Get a list of 2D tensors. Each of size numPoints x 2
-        inputs = [tf.squeeze(input_, [1]) for input_ in inputs]
+
+        # for input_ in inputs:
+        #     print(input_.shape, type(input_))
+
+        # inputs = [ tf.squeeze(input_, [1]) for input_ in inputs]
 
         # Embed the input spatial points into the embedding space
         embedded_inputs = []
